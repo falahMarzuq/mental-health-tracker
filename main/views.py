@@ -9,17 +9,21 @@ from django.urls import reverse
 from django.core import serializers
 from main.forms import MoodEntryForm
 from main.models import MoodEntry
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.utils.html import strip_tags
 
 @login_required(login_url='/login')
 def show_main(request):
-    mood_entries = MoodEntry.objects.filter(user=request.user)
-
+    
+    cookie = request.COOKIES.get('last_login', None)
+    if cookie == None:
+        return redirect('main:login')
     context = {
         'npm' : '2306202315',
         'name': request.user.username,
         'class': 'PBP F',
-        'mood_entries': mood_entries,
-        'last_login': request.COOKIES['last_login'],
+        'last_login': request.COOKIES.get('last_login', None),
     }
 
     return render(request, "main.html", context)
@@ -38,15 +42,17 @@ def register(request):
 
 def login_user(request):
    if request.method == 'POST':
-      form = AuthenticationForm(data=request.POST)
+        form = AuthenticationForm(data=request.POST)
 
-      if form.is_valid():
-        user = form.get_user()
-        login(request, user)
-        response = HttpResponseRedirect(reverse("main:show_main"))
-        response.set_cookie('last_login', str(datetime.datetime.now()))
-        return response
-
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            response = HttpResponseRedirect(reverse("main:show_main"))
+            response.set_cookie('last_login', str(datetime.datetime.now()))
+            return response
+        else:
+            messages.error(request, "Invalid username or password. Please try again.")
+    
    else:
       form = AuthenticationForm(request)
    context = {'form': form}
@@ -70,6 +76,23 @@ def create_mood_entry(request):
     context = {'form': form}
     return render(request, "create_mood_entry.html", context)
 
+@csrf_exempt
+@require_POST
+def add_mood_entry_ajax(request):
+    mood = strip_tags(request.POST.get("mood"))
+    feelings = strip_tags(request.POST.get("feelings"))
+    mood_intensity = request.POST.get("mood_intensity")
+    user = request.user
+
+    new_mood = MoodEntry(
+        mood=mood, feelings=feelings,
+        mood_intensity=mood_intensity,
+        user=user
+    )
+    new_mood.save()
+
+    return HttpResponse(b"CREATED", status=201)
+
 def edit_mood(request, id):
     mood = MoodEntry.objects.get(pk = id)
 
@@ -88,7 +111,7 @@ def delete_mood(request, id):
     return HttpResponseRedirect(reverse('main:show_main'))
 
 def show_xml(request):
-    data = MoodEntry.objects.all()
+    data = MoodEntry.objects.filter(user=request.user)
     return HttpResponse(serializers.serialize("xml", data), content_type="application/xml")
 
 def show_xml_by_id(request, id):
@@ -96,7 +119,7 @@ def show_xml_by_id(request, id):
     return HttpResponse(serializers.serialize("xml", data), content_type="application/xml")
 
 def show_json(request):
-    data = MoodEntry.objects.all()
+    data = MoodEntry.objects.filter(user=request.user)
     return HttpResponse(serializers.serialize("json", data), content_type="application/json")
 
 def show_json_by_id(request, id):
