@@ -1,6 +1,5 @@
 from django.urls import path
-from main.views import show_main, register, login_user, logout_user, create_mood_entry, add_mood_entry_ajax, edit_mood, delete_mood, show_xml, show_xml_by_id, show_json, show_json_by_id
-
+from main.views import *
 app_name = 'main'
 
 urlpatterns = [
@@ -16,4 +15,5 @@ urlpatterns = [
     path('json/', show_json, name='show_json'),
     path('xml/<str:id>/', show_xml_by_id, name='show_xml_by_id'),
     path('json/<str:id>/', show_json_by_id, name='show_json_by_id'),
+    path('create-flutter/', create_mood_flutter, name='create_mood_flutter'),
 ]
